@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Gestión - Ministerio de Coordinación y Planificación</title>
+    
+    <!-- Librerías -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- Tipografía Barlow (Manual de Marca) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Semi+Condensed:wght@700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'corrientes-azul': '#022347',
+                        'corrientes-celeste': '#769FD3',
+                        'corrientes-gris': '#EDEDED',
+                        'corrientes-negro': '#2E2D2C',
+                        'corrientes-verde': '#719C29',
+                        'corrientes-amarillo': '#FACD05',
+                    },
+                    fontFamily: {
+                        sans: ['Barlow', 'sans-serif'],
+                        title: ['Barlow Semi Condensed', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #F8FAFC; color: #2E2D2C; }
+        .font-title { font-family: 'Barlow Semi Condensed', sans-serif; }
+        
+        #excelInput::file-selector-button {
+            margin-right: 20px; border: none; background: #022347;
+            padding: 10px 25px; border-radius: 4px; color: #fff;
+            font-family: 'Barlow Semi Condensed', sans-serif;
+            font-weight: 700; text-transform: uppercase; cursor: pointer; transition: all 0.3s;
+        }
+        #excelInput::file-selector-button:hover { background: #769FD3; }
+
+        .active-period {
+            background-color: #F0F4F8;
+            border-right: 5px solid #769FD3;
+            color: #022347 !important;
+        }
+
+        .card-entry { animation: slideUp 0.4s ease-out forwards; opacity: 0; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="font-sans">
+
+    <!-- HEADER INSTITUCIONAL -->
+    <header class="bg-white border-b border-corrientes-gris sticky top-0 z-50 shadow-sm">
+        <div class="max-w-[1400px] mx-auto px-6 py-4 flex justify-between items-center">
+            <img src="input_file_0.png" alt="Gobierno de Corrientes" class="h-14 lg:h-16 object-contain">
+            <div class="hidden md:block text-right border-l-2 border-corrientes-gris pl-6">
+                <p class="font-title font-extrabold text-corrientes-azul text-sm uppercase tracking-wider">Control de Gestión</p>
+                <p class="text-xs text-corrientes-celeste font-semibold uppercase">Ministerio de Coordinación y Planificación</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- ZONA DE CARGA -->
+    <section class="bg-corrientes-gris/40 border-b border-corrientes-gris py-8">
+        <div class="max-w-[1400px] mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-corrientes-gris flex-1 max-w-2xl">
+                <label class="block font-title font-bold text-corrientes-azul mb-2 uppercase text-sm">
+                    📁 Cargar Reporte de Obras (Hoja 'RESUMEN')
+                </label>
+                <input type="file" id="excelInput" accept=".xlsx, .xls" class="w-full text-sm text-slate-500">
+            </div>
+            <div id="summaryStats" class="hidden flex gap-10">
+                <div class="text-right">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Expedientes</p>
+                    <p id="totalCount" class="text-3xl font-title font-extrabold text-corrientes-azul">0</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Inversión Total</p>
+                    <p id="totalAmount" class="text-3xl font-title font-extrabold text-corrientes-celeste">$ 0</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTENIDO -->
+    <main class="max-w-[1400px] mx-auto grid grid-cols-12 gap-8 p-6 md:p-10">
+        <!-- LINEA DE TIEMPO -->
+        <aside class="col-span-12 lg:col-span-4">
+            <div class="bg-white rounded-xl shadow-sm border border-corrientes-gris overflow-hidden sticky top-32">
+                <div class="p-4 bg-corrientes-azul text-white">
+                    <h3 class="font-title font-bold text-sm uppercase tracking-widest">Cronología de Inicio</h3>
+                </div>
+                <div id="timeline" class="max-h-[500px] overflow-y-auto">
+                    <div class="p-10 text-center text-slate-400 italic text-sm">Esperando archivo...</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- LISTADO -->
+        <section class="col-span-12 lg:col-span-8">
+            <div id="viewHeader" class="hidden mb-8 border-b-4 border-corrientes-gris pb-4">
+                <h2 id="viewTitle" class="font-title font-extrabold text-4xl text-corrientes-azul uppercase tracking-tighter">Mes</h2>
+                <p id="viewSub" class="text-corrientes-celeste font-bold text-sm uppercase">0 Obras encontradas</p>
+            </div>
+            <div id="cardsContainer" class="space-y-5">
+                <!-- Cards se inyectan aquí -->
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-corrientes-negro py-10 text-center">
+        <img src="input_file_1.png" alt="Logo Blanco" class="h-10 mx-auto mb-4 opacity-70">
+        <p class="text-[10px] text-white/30 font-bold uppercase tracking-[0.3em]">Gestión de Obras Públicas - Provincia de Corrientes</p>
+    </footer>
+
+    <script>
+        let groupedData = {};
+
+        // EXTRACCIÓN MEJORADA Y EXCLUYENTE
+        function getColumnValue(row, target) {
+            const keys = Object.keys(row);
+            
+            // Lógica para Contratista (Empresa Ganadora)
+            if (target === 'CONTRATISTA') {
+                const key = keys.find(k => {
+                    const n = k.toLowerCase().replace(/[\n\r]/g, ' ');
+                    return n.includes('empresa') && n.includes('ganadora') && !n.includes('presupuesto');
+                });
+                return key ? row[key] : "No Adjudicado";
+            }
+
+            // Lógica para Monto (Presupuesto)
+            if (target === 'MONTO') {
+                const key = keys.find(k => {
+                    const n = k.toLowerCase().replace(/[\n\r]/g, ' ');
+                    return n.includes('presupuesto') || n.includes('monto');
+                });
+                return key ? row[key] : 0;
+            }
+
+            // Lógica para Nombre de Obra
+            if (target === 'OBRA') {
+                const key = keys.find(k => k.toLowerCase().includes('nombre'));
+                return key ? row[key] : "Obra sin nombre";
+            }
+
+            // Lógica para Expediente
+            if (target === 'EXPTE') {
+                const key = keys.find(k => k.toLowerCase().includes('num') && k.toLowerCase().includes('expte'));
+                return key ? row[key] : "---";
+            }
+
+            // Lógica para Estado
+            if (target === 'ESTADO') {
+                const key = keys.find(k => k.toLowerCase().includes('estado'));
+                return key ? row[key] : "Pendiente";
+            }
+
+            return null;
+        }
+
+        document.getElementById('excelInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                const sheet = workbook.Sheets['RESUMEN'];
+                
+                if (!sheet) {
+                    alert('Error: No se encontró la hoja "RESUMEN"');
+                    return;
+                }
+
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                processData(jsonData);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function processData(rows) {
+            groupedData = {};
+            let globalTotal = 0;
+
+            // Filtrar solo filas con nombre de obra válido
+            const validRows = rows.filter(r => {
+                const nombre = getColumnValue(r, 'OBRA');
+                return nombre && nombre.toString().trim() !== "";
+            });
+
+            validRows.forEach(row => {
+                // Procesar Fecha de Inicio
+                const dateKey = Object.keys(row).find(k => k.toLowerCase().includes('inicio') && k.toLowerCase().includes('expte'));
+                const dateVal = row[dateKey];
+                let dateObj = null;
+
+                if (dateVal instanceof Date) dateObj = dateVal;
+                else if (!isNaN(dateVal) && dateVal !== "") dateObj = new Date((dateVal - 25569) * 86400 * 1000);
+
+                let period = "SIN FECHA";
+                let sortTime = 9999999999999;
+
+                if (dateObj) {
+                    const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                    period = `${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+                    sortTime = dateObj.getTime();
+                }
+
+                if (!groupedData[period]) groupedData[period] = { label: period, time: sortTime, items: [] };
+                groupedData[period].items.push(row);
+                
+                globalTotal += parseFloat(getColumnValue(row, 'MONTO') || 0);
+            });
+
+            // Actualizar Stats
+            document.getElementById('summaryStats').classList.remove('hidden');
+            document.getElementById('totalCount').innerText = validRows.length;
+            document.getElementById('totalAmount').innerText = formatARS(globalTotal);
+
+            renderTimeline();
+        }
+
+        function renderTimeline() {
+            const container = document.getElementById('timeline');
+            container.innerHTML = "";
+            const keys = Object.keys(groupedData).sort((a, b) => groupedData[a].time - groupedData[b].time);
+
+            keys.forEach(key => {
+                const btn = document.createElement('button');
+                btn.className = "w-full flex items-center justify-between p-4 border-b border-corrientes-gris text-left hover:bg-slate-50 transition-all group";
+                btn.onclick = () => showPeriod(key, btn);
+                btn.innerHTML = `
+                    <span class="font-title font-bold text-corrientes-negro uppercase text-sm">${key}</span>
+                    <span class="text-[10px] font-extrabold bg-corrientes-gris px-2 py-1 rounded group-hover:bg-corrientes-celeste group-hover:text-white transition-colors">
+                        ${groupedData[key].items.length}
+                    </span>
+                `;
+                container.appendChild(btn);
+            });
+            if(container.firstChild) container.firstChild.click();
+        }
+
+        function showPeriod(key, el) {
+            document.querySelectorAll('#timeline button').forEach(b => b.classList.remove('active-period'));
+            el.classList.add('active-period');
+
+            document.getElementById('viewHeader').classList.remove('hidden');
+            document.getElementById('viewTitle').innerText = key;
+            document.getElementById('viewSub').innerText = `${groupedData[key].items.length} EXPEDIENTES DETECTADOS`;
+
+            const container = document.getElementById('cardsContainer');
+            container.innerHTML = "";
+
+            groupedData[key].items.forEach((obra, i) => {
+                const nombre = getColumnValue(obra, 'OBRA');
+                const empresa = getColumnValue(obra, 'CONTRATISTA');
+                const monto = getColumnValue(obra, 'MONTO');
+                const expte = getColumnValue(obra, 'EXPTE');
+                const estado = getColumnValue(obra, 'ESTADO').toString().toUpperCase();
+
+                const card = document.createElement('div');
+                card.className = "card-entry bg-white border border-corrientes-gris rounded-lg p-6 shadow-sm border-l-[6px] border-l-corrientes-azul hover:shadow-md transition-shadow";
+                card.style.animationDelay = `${i * 0.05}s`;
+                card.innerHTML = `
+                    <div class="flex flex-col lg:flex-row justify-between items-start gap-4">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="bg-corrientes-negro text-white text-[9px] font-bold px-2 py-0.5 rounded tracking-widest uppercase">EXP: ${expte}</span>
+                                <span class="${getStatusStyle(estado)} text-[9px] font-bold px-2 py-0.5 rounded border uppercase">${estado}</span>
+                            </div>
+                            <h4 class="font-title font-extrabold text-xl text-corrientes-azul leading-tight uppercase">${nombre}</h4>
+                            <p class="text-xs text-slate-500 mt-4 font-semibold uppercase flex items-center gap-2">
+                                <svg class="w-4 h-4 text-corrientes-celeste" fill="currentColor" viewBox="0 0 20 20"><path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0z"></path></svg>
+                                Contratista: <span class="text-corrientes-negro font-bold">${empresa}</span>
+                            </p>
+                        </div>
+                        <div class="bg-corrientes-gris/30 p-4 rounded lg:bg-transparent lg:p-0 lg:text-right w-full lg:w-auto">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Inversión Adjudicada</p>
+                            <p class="text-2xl font-title font-extrabold text-corrientes-azul">${formatARS(monto)}</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function formatARS(v) { return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(v); }
+        function getStatusStyle(s) {
+            const t = s.toLowerCase();
+            if (t.includes('certif') || t.includes('inicio')) return 'bg-corrientes-verde/10 text-corrientes-verde border-corrientes-verde/20';
+            if (t.includes('pliego') || t.includes('llamado') || t.includes('anticipo')) return 'bg-corrientes-amarillo/10 text-orange-600 border-corrientes-amarillo/20';
+            return 'bg-corrientes-celeste/10 text-corrientes-azul border-corrientes-celeste/30';
+        }
+    </script>
+</body>
+</html>
